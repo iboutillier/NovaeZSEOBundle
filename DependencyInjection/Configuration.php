@@ -30,6 +30,7 @@ class Configuration extends SiteAccessConfiguration
         $systemNode
             ->scalarNode( 'google_verification' )->defaultValue( '~' )->end()
             ->scalarNode( 'google_gatracker' )->defaultValue( '~' )->end()
+            ->scalarNode( 'bing_verification' )->defaultValue( '~' )->end()
             ->scalarNode( 'fieldtype_metas_identifier' )->defaultValue( 'metas' )->end()
             ->arrayNode( 'fieldtype_metas' )
                 ->isRequired()
@@ -76,7 +77,15 @@ class Configuration extends SiteAccessConfiguration
                 ->end()
             ->end()
             ->arrayNode( 'robots_disallow' )
-                ->prototype( 'scalar' )
+                ->prototype( 'array' )
+                    ->children()
+                        ->arrayNode( 'Disallow' )
+                            ->prototype( 'scalar' )->end()
+                        ->end()
+                        ->arrayNode( 'Allow' )
+                            ->prototype( 'scalar' )->end()
+                        ->end()
+                ->end()
             ->end()
             ->end();
         return $treeBuilder;
