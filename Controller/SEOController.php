@@ -16,6 +16,7 @@ use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Method;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use DOMDocument;
 
 /**
  * Class SEOController
@@ -33,18 +34,38 @@ class SEOController extends Controller
     {
         $response = new Response();
         $response->setSharedMaxAge( 24 * 3600 );
-        $robots = [ "User-agent: *" ];
+        $aRules = $this->getConfigResolver()->getParameter( 'robots_disallow', 'novae_zseo' );
+        $robots = [];
 
         if ( $this->get( 'kernel' )->getEnvironment() != "prod" )
         {
+            $robots[] = "User-agent: *";
             $robots[] = "Disallow: /";
         }
-        $rules = $this->getConfigResolver()->getParameter( 'robots_disallow', 'novae_zseo' );
-        if ( is_array( $rules ) )
+
+        if ( is_array( $aRules ) )
         {
-            foreach ( $rules as $rule )
+            foreach ( $aRules as $key => $rules )
             {
-                $robots[] = "Disallow: {$rule}";
+                $robots[] = "User-agent: " . ( $key == "ALL" ? "*" : $key );
+                if ( isset( $rules['Disallow'] ) && !empty( $rules['Disallow'] ) ) {
+                    foreach ( $rules as $ruleDisallow )
+                    {
+                        foreach ( $ruleDisallow as $rule ) {
+                            $robots[] = "Disallow: {$rule}";
+                        }
+                    }
+                }
+                if ( isset( $rules['Allow'] ) && !empty( $rules['Allow'] ) ) {
+                    foreach ( $rules as $ruleAllow )
+                    {
+                        foreach ( $ruleAllow as $rule ) {
+                            $robots[] = "Allow: {$rule}";
+                        }
+                    }
+                }
+
+                $robots[] = "";
             }
         }
         $response->setContent( implode( "\n", $robots ) );
@@ -70,6 +91,36 @@ class SEOController extends Controller
         $response = new Response();
         $response->setSharedMaxAge( 24 * 3600 );
         $response->setContent( "google-site-verification: google{$key}.html" );
+        return $response;
+    }
+
+    /**
+     * Bing Verification route
+     *
+     * @Route("/BingSiteAuth.xml")
+     * @Method("GET")
+     * @throws NotFoundHttpException
+     * @return Response
+     */
+    public function bingVerifAction()
+    {
+        if ( !$this->getConfigResolver()->hasParameter( 'bing_verification', 'novae_zseo' ) )
+        {
+            throw new NotFoundHttpException( "Bing Verification Key not found" );
+        }
+
+        $key = $this->getConfigResolver()->getParameter( 'bing_verification', 'novae_zseo' );
+
+        $xml = new DOMDocument("1.0", "UTF-8");
+        $xml->formatOutput = true;
+
+        $root = $xml->createElement("users");
+        $root->appendChild($xml->createElement("user", $key));
+        $xml->appendChild($root);
+
+        $response = new Response($xml->saveXML());
+        $response->setSharedMaxAge( 24 * 3600 );
+        $response->headers->set("Content-Type", "text/xml");
         return $response;
     }
 }
